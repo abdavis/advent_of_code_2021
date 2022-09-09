@@ -1,17 +1,69 @@
 fn main() {
-    println!("Hello, world!");
+    let practice = get_practice_input();
+    let input = get_input();
+    println!("{practice:?}");
+    println!("practice danger level:{}", practice.danger_level());
+    print!("input danger level:{}", input.danger_level());
 }
 
-fn get_input() -> Floor<10> {
-    let mut lines = PRACTICE.lines();
-    let floor = Floor {
-        vals: [[0; 10]; 10],
-    };
-    floor
+fn get_practice_input() -> Floor<5, 10> {
+    let lines = PRACTICE.lines();
+    Floor::new(lines)
 }
 
-struct Floor<const WIDTH: usize> {
-    vals: [[u8; WIDTH]; WIDTH],
+fn get_input() -> Floor<100, 100> {
+    let lines = INPUT.lines();
+    Floor::new(lines)
+}
+
+#[derive(Debug)]
+struct Floor<const ROWS: usize, const COLS: usize> {
+    vals: [[u8; COLS]; ROWS],
+}
+
+impl<const ROWS: usize, const COLS: usize> Floor<ROWS, COLS> {
+    fn new<'a>(iter: impl Iterator<Item = &'a str>) -> Floor<ROWS, COLS> {
+        let mut floor = [[0; COLS]; ROWS];
+        for (row, val) in iter.enumerate() {
+            for (col, num) in val
+                .chars()
+                .map(|char| char.to_digit(10).unwrap())
+                .enumerate()
+            {
+                floor[row][col] = num as u8;
+            }
+        }
+        Floor { vals: floor }
+    }
+    fn danger_level(&self) -> usize {
+        let mut sum = 0;
+        for row in 0..ROWS {
+            for col in 0..COLS {
+                if row > 0 {
+                    if self.vals[row][col] >= self.vals[row - 1][col] {
+                        continue;
+                    }
+                }
+                if row < ROWS - 1 {
+                    if self.vals[row][col] >= self.vals[row + 1][col] {
+                        continue;
+                    }
+                }
+                if col > 0 {
+                    if self.vals[row][col] >= self.vals[row][col - 1] {
+                        continue;
+                    }
+                }
+                if col < COLS - 1 {
+                    if self.vals[row][col] >= self.vals[row][col + 1] {
+                        continue;
+                    }
+                }
+                sum += self.vals[row][col] as usize + 1 as usize;
+            }
+        }
+        sum
+    }
 }
 
 const PRACTICE: &str = "2199943210
