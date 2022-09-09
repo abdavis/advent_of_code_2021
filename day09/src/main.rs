@@ -3,7 +3,9 @@ fn main() {
     let input = get_input();
     println!("{practice:?}");
     println!("practice danger level:{}", practice.danger_level());
-    print!("input danger level:{}", input.danger_level());
+    println!("input danger level:{}", input.danger_level());
+    println!("practice basin sizes:{}", practice.largest_basins());
+    println!("input basin sizes:{}", input.largest_basins());
 }
 
 fn get_practice_input() -> Floor<5, 10> {
@@ -63,6 +65,68 @@ impl<const ROWS: usize, const COLS: usize> Floor<ROWS, COLS> {
             }
         }
         sum
+    }
+    fn largest_basins(&self) -> usize {
+        let mut largest = 0;
+        let mut middle = 0;
+        let mut smaller = 0;
+
+        let mut visited = [[false; COLS]; ROWS];
+        visited
+            .iter_mut()
+            .flatten()
+            .zip(self.vals.iter().flatten())
+            .for_each(|(state, num)| {
+                if *num == 9 {
+                    *state = true
+                }
+            });
+
+        for row in 0..ROWS {
+            for col in 0..COLS {
+                let count = Self::grow_basin(row, col, &mut visited, &self.vals);
+                if count > largest {
+                    smaller = middle;
+                    middle = largest;
+                    largest = count;
+                } else if count > middle {
+                    smaller = middle;
+                    middle = count;
+                } else if count > smaller {
+                    smaller = count;
+                }
+            }
+        }
+
+        largest * middle * smaller
+    }
+    fn grow_basin(
+        row: usize,
+        col: usize,
+        states: &mut [[bool; COLS]; ROWS],
+        vals: &[[u8; COLS]; ROWS],
+    ) -> usize {
+        let mut count = 0;
+        if states[row][col] {
+            return 0;
+        } else {
+            states[row][col] = true;
+            count += 1;
+            if row > 0 {
+                count += Self::grow_basin(row - 1, col, states, vals);
+            }
+            if row < ROWS - 1 {
+                count += Self::grow_basin(row + 1, col, states, vals);
+            }
+            if col > 0 {
+                count += Self::grow_basin(row, col - 1, states, vals);
+            }
+            if col < COLS - 1 {
+                count += Self::grow_basin(row, col + 1, states, vals);
+            }
+        }
+
+        count
     }
 }
 
