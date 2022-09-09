@@ -1,7 +1,95 @@
 fn main() {
-    println!("Hello, world!");
+    let practice: Vec<_> = PRACTICE.lines().map(|line| parse_line(line)).collect();
+    let input: Vec<_> = INPUT.lines().map(|line| parse_line(line)).collect();
+    let (mut practice_correction_scores, practice_error_score) =
+        practice
+            .iter()
+            .fold((vec![], 0), |(mut cor, err), v| match check(v) {
+                Ok(ReturnState::End(n)) => {
+                    cor.push(n);
+                    (cor, err)
+                }
+                Err(n) => (cor, err + n),
+                _ => panic!(),
+            });
+
+    println!("Practice Error Score:{practice_error_score}");
+
+    let (mut correction_scores, error_score) =
+        input
+            .iter()
+            .fold((vec![], 0), |(mut cor, err), v| match check(v) {
+                Ok(ReturnState::End(n)) => {
+                    cor.push(n);
+                    (cor, err)
+                }
+                Err(n) => (cor, err + n),
+                _ => panic!(),
+            });
+
+    println!("Error Score:{error_score}");
+
+    practice_correction_scores.sort_unstable();
+    println!(
+        "Practice Correction Score:{}",
+        practice_correction_scores[practice_correction_scores.len() / 2]
+    );
+
+    correction_scores.sort_unstable();
+    println!(
+        "Correction Score:{}",
+        correction_scores[correction_scores.len() / 2]
+    );
 }
 
+fn check(val: &Vec<OpenClose>) -> Result<ReturnState, usize> {
+    if let OpenClose::Close(paren) = val[0] {
+        Err(paren.score())
+    } else {
+        recursive_check(&mut val.iter())
+    }
+}
+fn recursive_check<'a>(
+    iter: &mut impl Iterator<Item = &'a OpenClose>,
+) -> Result<ReturnState, usize> {
+    match iter.next() {
+        None => Ok(ReturnState::End(0)),
+        Some(OpenClose::Open(paren)) => match recursive_check(iter)? {
+            ReturnState::End(n) => Ok(ReturnState::End(n * 5 + paren.completion_score())),
+            ReturnState::Closing(inner_paren) => {
+                if inner_paren != *paren {
+                    Err(inner_paren.score())
+                } else {
+                    recursive_check(iter)
+                }
+            }
+        },
+        Some(OpenClose::Close(paren)) => Ok(ReturnState::Closing(*paren)),
+    }
+}
+
+fn parse_line(s: &str) -> Vec<OpenClose> {
+    s.chars()
+        .map(|c| match c {
+            '(' => OpenClose::Open(Paren::Normal),
+            '[' => OpenClose::Open(Paren::Square),
+            '{' => OpenClose::Open(Paren::Squiggly),
+            '<' => OpenClose::Open(Paren::Angle),
+            ')' => OpenClose::Close(Paren::Normal),
+            ']' => OpenClose::Close(Paren::Square),
+            '}' => OpenClose::Close(Paren::Squiggly),
+            '>' => OpenClose::Close(Paren::Angle),
+            _ => panic!("bad character!"),
+        })
+        .collect()
+}
+
+enum ReturnState {
+    Closing(Paren),
+    End(usize),
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
 enum Paren {
     Normal,
     Square,
@@ -9,6 +97,26 @@ enum Paren {
     Angle,
 }
 
+impl Paren {
+    fn score(&self) -> usize {
+        match self {
+            Self::Normal => 3,
+            Self::Square => 57,
+            Self::Squiggly => 1197,
+            Self::Angle => 25137,
+        }
+    }
+    fn completion_score(&self) -> usize {
+        match self {
+            Self::Normal => 1,
+            Self::Square => 2,
+            Self::Squiggly => 3,
+            Self::Angle => 4,
+        }
+    }
+}
+
+#[derive(Debug)]
 enum OpenClose {
     Open(Paren),
     Close(Paren),
