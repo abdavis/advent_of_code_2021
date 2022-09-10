@@ -1,13 +1,42 @@
 use std::collections::{hash_map, HashMap, HashSet};
 
+type Map = HashMap<String, Node>;
+type Set = HashSet<String>;
+
 fn main() {
     let prac_graph = create_graph(PRACTICE);
-
-    println!("{prac_graph:?}")
+    let graph = create_graph(INPUT);
+    println!(
+        "practice paths:{}",
+        find_paths(&"start".into(), &prac_graph, &mut Set::new())
+    );
+    println!(
+        "paths:{}",
+        find_paths(&"start".into(), &graph, &mut Set::new())
+    );
 }
 
-fn create_graph(input: &str) -> HashMap<String, Node> {
-    let mut map = HashMap::<String, Node>::new();
+fn find_paths(key: &String, map: &Map, set: &mut Set) -> usize {
+    if key == "end" {
+        return 1;
+    }
+    let node = map.get(key).unwrap();
+    if set.contains(key) {
+        return 0;
+    }
+    if node.only_once {
+        set.insert(key.into());
+    }
+    let mut count = 0;
+    for key in node.edges.iter() {
+        count += find_paths(&key, map, set);
+    }
+    set.remove(key);
+    count
+}
+
+fn create_graph(input: &str) -> Map {
+    let mut map = Map::new();
     for line in input.lines() {
         let mut iter = line.split('-');
         let a = iter.next().unwrap();
