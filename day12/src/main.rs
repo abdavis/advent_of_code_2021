@@ -8,15 +8,49 @@ fn main() {
     let graph = create_graph(INPUT);
     println!(
         "practice paths:{}",
-        find_paths(&"start".into(), &prac_graph, &mut Set::new())
+        find_paths(&"start", &prac_graph, &mut Set::new())
     );
-    println!(
-        "paths:{}",
-        find_paths(&"start".into(), &graph, &mut Set::new())
-    );
+    println!("paths:{}", find_paths(&"start", &graph, &mut Set::new()));
+    println!("modified practice paths:{}", find_paths2(&prac_graph));
+    println!("modified paths:{}", find_paths2(&graph));
 }
 
-fn find_paths(key: &String, map: &Map, set: &mut Set) -> usize {
+fn find_paths2(map: &Map) -> usize {
+    fn find_paths_helper(key: &str, map: &Map, set: &Set, mut twice: bool) -> usize {
+        if key == "end" {
+            return 1;
+        }
+        if key == "start" {
+            return 0;
+        }
+        let node = map.get(key).unwrap();
+        if set.contains(key) {
+            if twice {
+                return 0;
+            }
+            twice = true;
+        }
+
+        let mut set = set.clone();
+        if node.only_once {
+            set.insert(key.into());
+        }
+        let mut count = 0;
+        for key in &node.edges {
+            count += find_paths_helper(&key, map, &set, twice);
+        }
+        count
+    }
+
+    let node = map.get("start").unwrap();
+    let mut count = 0;
+    for key in &node.edges {
+        count += find_paths_helper(&key, map, &mut Set::new(), false);
+    }
+    count
+}
+
+fn find_paths(key: &str, map: &Map, set: &mut Set) -> usize {
     if key == "end" {
         return 1;
     }
@@ -28,7 +62,7 @@ fn find_paths(key: &String, map: &Map, set: &mut Set) -> usize {
         set.insert(key.into());
     }
     let mut count = 0;
-    for key in node.edges.iter() {
+    for key in &node.edges {
         count += find_paths(&key, map, set);
     }
     set.remove(key);
@@ -43,7 +77,7 @@ fn create_graph(input: &str) -> Map {
         let b = iter.next().unwrap();
         match map.entry(a.into()) {
             hash_map::Entry::Occupied(mut entry) => entry.get_mut().edges.push(b.into()),
-            hash_map::Entry::Vacant(mut vac) => {
+            hash_map::Entry::Vacant(vac) => {
                 vac.insert(Node {
                     edges: vec![b.into()],
                     only_once: a.to_lowercase() == a,
@@ -52,7 +86,7 @@ fn create_graph(input: &str) -> Map {
         }
         match map.entry(b.into()) {
             hash_map::Entry::Occupied(mut entry) => entry.get_mut().edges.push(a.into()),
-            hash_map::Entry::Vacant(mut vac) => {
+            hash_map::Entry::Vacant(vac) => {
                 vac.insert(Node {
                     edges: vec![a.into()],
                     only_once: b.to_lowercase() == b,
