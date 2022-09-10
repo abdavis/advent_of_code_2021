@@ -47,7 +47,7 @@ fn score(polymer: &Polymer) -> u64 {
                 }
             },
         });
-
+    //each letter is counted twice, so divide by two
     scores.values().max().unwrap() / 2 - scores.values().min().unwrap() / 2
 }
 
