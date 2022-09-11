@@ -1,26 +1,26 @@
 use std::collections::HashMap;
 
 fn main() {
-    let mut small_cavern = Cavern::<10>::from_str(PRACTICE);
-    small_cavern.search();
-    println!("Min practice path: {}", small_cavern.get_cost());
+    let small_cavern = Cavern::<10>::from_str(PRACTICE);
+    small_cavern.print();
+    println!("Min path for small cavern: {}\n", small_cavern.get_cost());
 
-    let mut large_cavern = Cavern::<100>::from_str(INPUT);
-    large_cavern.search();
-    println!("Min path: {}", large_cavern.get_cost());
+    let large_cavern = Cavern::<100>::from_str(INPUT);
+    large_cavern.print();
+    println!("Min path for large cavern: {}\n", large_cavern.get_cost());
 
-    let mut medium_cavern = Cavern::<50>::larger_from_str(PRACTICE, 10);
-    medium_cavern.search();
-    println!("Min path for medium cavern: {}", medium_cavern.get_cost());
+    let medium_cavern = Cavern::<50>::larger_from_str(PRACTICE, 10);
+    medium_cavern.print();
+    println!("Min path for medium cavern: {}\n", medium_cavern.get_cost());
 
-    let mut huge_cavern = Cavern::<500>::larger_from_str(INPUT, 100);
-    huge_cavern.search();
-    println!("Min path for huge cavern: {}", huge_cavern.get_cost());
+    let huge_cavern = Cavern::<500>::larger_from_str(INPUT, 100);
+    huge_cavern.print();
+    println!("Min path for huge cavern: {}\n", huge_cavern.get_cost());
 }
 
 #[derive(Debug)]
 struct Cavern<const SIZE: usize> {
-    //risk_levels: [[u8; SIZE]; SIZE],
+    risk_levels: [[u8; SIZE]; SIZE],
     graph: HashMap<(usize, usize), Vec<GraphEdge>>,
     searched: HashMap<(usize, usize), SearchNode>,
     searching: HashMap<(usize, usize), SearchNode>,
@@ -35,7 +35,7 @@ struct GraphEdge {
 #[derive(Debug, Clone, Copy)]
 struct SearchNode {
     cost: usize,
-    //parent: Option<(usize, usize)>,
+    parent: Option<(usize, usize)>,
 }
 
 impl<const SIZE: usize> Cavern<SIZE> {
@@ -61,14 +61,14 @@ impl<const SIZE: usize> Cavern<SIZE> {
                             if calculated_cost < old_neighbor.cost {
                                 *old_neighbor = SearchNode {
                                     cost: calculated_cost,
-                                    //parent: Some(key),
+                                    parent: Some(key),
                                 }
                             }
                         }
                         std::collections::hash_map::Entry::Vacant(vac) => {
                             vac.insert(SearchNode {
                                 cost: calculated_cost,
-                                //parent: Some(key),
+                                parent: Some(key),
                             });
                         }
                     }
@@ -151,27 +151,49 @@ impl<const SIZE: usize> Cavern<SIZE> {
         searching.insert(
             (0, 0),
             SearchNode {
-                //parent: None,
+                parent: None,
                 cost: 0,
             },
         );
 
-        Self {
-            //risk_levels,
+        let mut out = Self {
+            risk_levels,
             graph,
             searching,
             searched: HashMap::new(),
-        }
+        };
+        out.search();
+        out
     }
-    fn print_array(arr: &[[u8; SIZE]; SIZE]) {
-        let mut out = String::new();
-        for row in arr {
-            for col in row {
-                out += &(col.to_string() + " ");
-            }
-            out += "\n";
+    fn print(&self) {
+        use std::{collections::HashSet, io::Write};
+        use termcolor::{BufferedStandardStream, Color, ColorChoice, ColorSpec, WriteColor};
+        let mut set = HashSet::new();
+        set.insert((SIZE - 1, SIZE - 1));
+        let mut end = (SIZE - 1, SIZE - 1);
+        while let Some(parent) = self.searched.get(&end).unwrap().parent {
+            set.insert(parent);
+            end = parent;
         }
-        println!("{out}");
+        let mut stdout = BufferedStandardStream::stdout(ColorChoice::Always);
+        let mut green = ColorSpec::new();
+        green.set_fg(Some(Color::Green)).set_bold(true);
+        let default = ColorSpec::default();
+        for row in 0..SIZE {
+            for col in 0..SIZE {
+                match set.contains(&(row, col)) {
+                    false => {
+                        write!(&mut stdout, "{}", self.risk_levels[row][col]).unwrap();
+                    }
+                    true => {
+                        stdout.set_color(&green).unwrap();
+                        write!(&mut stdout, "{}", self.risk_levels[row][col]).unwrap();
+                        stdout.set_color(&default).unwrap();
+                    }
+                }
+            }
+            write!(&mut stdout, "\n").unwrap();
+        }
     }
 }
 
