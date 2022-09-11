@@ -1,5 +1,9 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
+//old performance number: 650 ms
 fn main() {
     let small_cavern = Cavern::<10>::from_str(PRACTICE);
     small_cavern.print();
@@ -13,8 +17,11 @@ fn main() {
     medium_cavern.print();
     println!("Min path for medium cavern: {}\n", medium_cavern.get_cost());
 
+    let start = Instant::now();
     let huge_cavern = Cavern::<500>::larger_from_str(INPUT, 100);
-    huge_cavern.print();
+    let time = start.elapsed();
+    //huge_cavern.print();
+    println!("{time:#?}");
     println!("Min path for huge cavern: {}\n", huge_cavern.get_cost());
 }
 
