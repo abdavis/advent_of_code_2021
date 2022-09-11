@@ -8,6 +8,14 @@ fn main() {
     let mut large_cavern = Cavern::<100>::from_str(INPUT);
     large_cavern.search();
     println!("Min path: {}", large_cavern.get_cost());
+
+    let mut medium_cavern = Cavern::<50>::larger_from_str(PRACTICE, 10);
+    medium_cavern.search();
+    println!("Min path for medium cavern: {}", medium_cavern.get_cost());
+
+    let mut huge_cavern = Cavern::<500>::larger_from_str(INPUT, 100);
+    huge_cavern.search();
+    println!("Min path for huge cavern: {}", huge_cavern.get_cost());
 }
 
 #[derive(Debug)]
@@ -71,6 +79,29 @@ impl<const SIZE: usize> Cavern<SIZE> {
         }
     }
 
+    fn larger_from_str(s: &str, size: usize) -> Self {
+        let mut risk_levels = [[0u8; SIZE]; SIZE];
+        let mut inputs = s
+            .lines()
+            .flat_map(|line| line.chars().map(|c| c.to_digit(10).unwrap()));
+        for row in 0..size {
+            for col in 0..size {
+                risk_levels[row][col] = inputs.next().unwrap() as u8;
+            }
+        }
+
+        for row in 0..SIZE {
+            for col in 0..SIZE {
+                risk_levels[row][col] =
+                    ((((risk_levels[row % size][col % size] as usize + row / size + col / size)
+                        - 1)
+                        % 9)
+                        + 1) as u8;
+            }
+        }
+
+        Self::make_cavern(risk_levels)
+    }
     fn from_str(s: &str) -> Self {
         let mut risk_levels = [[0u8; SIZE]; SIZE];
         risk_levels
@@ -82,6 +113,9 @@ impl<const SIZE: usize> Cavern<SIZE> {
             )
             .for_each(|(i, j)| *i = j as u8);
 
+        Self::make_cavern(risk_levels)
+    }
+    fn make_cavern(risk_levels: [[u8; SIZE]; SIZE]) -> Self {
         let mut graph = HashMap::new();
         for row in 0..SIZE {
             for col in 0..SIZE {
@@ -128,6 +162,16 @@ impl<const SIZE: usize> Cavern<SIZE> {
             searching,
             searched: HashMap::new(),
         }
+    }
+    fn print_array(arr: &[[u8; SIZE]; SIZE]) {
+        let mut out = String::new();
+        for row in arr {
+            for col in row {
+                out += &(col.to_string() + " ");
+            }
+            out += "\n";
+        }
+        println!("{out}");
     }
 }
 
