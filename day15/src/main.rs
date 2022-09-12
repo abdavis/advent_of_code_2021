@@ -7,7 +7,7 @@ fn main() {
     println!("Min path for small cavern: {}\n", small_cavern.get_cost());
 
     let large_cavern = Cavern::<100>::from_str(INPUT);
-    large_cavern.print();
+    //large_cavern.print();
     println!("Min path for large cavern: {}\n", large_cavern.get_cost());
 
     let medium_cavern = Cavern::<50>::larger_from_str(PRACTICE, 10);
@@ -25,7 +25,7 @@ fn main() {
 #[derive(Debug)]
 struct Cavern<const SIZE: usize> {
     graph: [[u8; SIZE]; SIZE],
-    search_nodes: [[SearchNode; SIZE]; SIZE],
+    search_nodes: Box<[[SearchNode; SIZE]; SIZE]>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -33,7 +33,8 @@ struct SearchNode {
     cost: usize,
     parent: Option<Parent>,
 }
-#[derive(Eq)]
+
+#[derive(Debug)]
 struct HeapNode {
     idx: (usize, usize),
     cost: usize,
@@ -45,13 +46,13 @@ impl Ord for HeapNode {
         other.cost.cmp(&self.cost)
     }
 }
-
 impl PartialOrd for HeapNode {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(other.cost.cmp(&self.cost))
     }
 }
 
+impl Eq for HeapNode {}
 impl PartialEq for HeapNode {
     fn eq(&self, other: &Self) -> bool {
         self.cost == other.cost
@@ -87,12 +88,39 @@ impl<const SIZE: usize> Cavern<SIZE> {
         {
             if cost < self.search_nodes[row][col].cost {
                 self.search_nodes[row][col] = SearchNode { cost, parent };
+                if row == SIZE - 1 && col == SIZE - 1 {
+                    break;
+                }
                 if row > 0 {
                     let new_row = row - 1;
                     heap.push(HeapNode {
                         idx: (new_row, col),
                         cost: cost + self.graph[new_row][col] as usize,
                         parent: Some(Parent::Down),
+                    })
+                }
+                if row < SIZE - 1 {
+                    let new_row = row + 1;
+                    heap.push(HeapNode {
+                        idx: (new_row, col),
+                        cost: cost + self.graph[new_row][col] as usize,
+                        parent: Some(Parent::Up),
+                    })
+                }
+                if col > 0 {
+                    let new_col = col - 1;
+                    heap.push(HeapNode {
+                        idx: (row, new_col),
+                        cost: cost + self.graph[row][new_col] as usize,
+                        parent: Some(Parent::Right),
+                    })
+                }
+                if col < SIZE - 1 {
+                    let new_col = col + 1;
+                    heap.push(HeapNode {
+                        idx: (row, new_col),
+                        cost: cost + self.graph[row][new_col] as usize,
+                        parent: Some(Parent::Left),
                     })
                 }
             }
@@ -136,10 +164,12 @@ impl<const SIZE: usize> Cavern<SIZE> {
         Self::make_cavern(risk_levels)
     }
     fn make_cavern(graph: [[u8; SIZE]; SIZE]) -> Self {
-        let search_nodes = [[SearchNode {
-            cost: usize::MAX,
-            parent: None,
-        }; SIZE]; SIZE];
+        let search_nodes = Box::new(
+            [[SearchNode {
+                cost: usize::MAX,
+                parent: None,
+            }; SIZE]; SIZE],
+        );
         let mut out = Self {
             graph,
             search_nodes,
@@ -154,13 +184,13 @@ impl<const SIZE: usize> Cavern<SIZE> {
         set.insert((SIZE - 1, SIZE - 1));
         let mut end = (SIZE - 1, SIZE - 1);
         while let Some(parent) = self.search_nodes[end.0][end.1].parent {
-            set.insert(end);
             end = match parent {
                 Parent::Up => (end.0 - 1, end.1),
                 Parent::Down => (end.0 + 1, end.1),
                 Parent::Left => (end.0, end.1 - 1),
                 Parent::Right => (end.0, end.1 + 1),
             };
+            set.insert(end);
         }
         let mut stdout = BufferedStandardStream::stdout(ColorChoice::Always);
         let mut green = ColorSpec::new();
@@ -178,8 +208,70 @@ impl<const SIZE: usize> Cavern<SIZE> {
                         stdout.set_color(&default).unwrap();
                     }
                 }
+                let curr_parent = self.search_nodes[row][col].parent;
+                let next_parent = if col < SIZE - 1 {
+                    self.search_nodes[row][col + 1].parent
+                } else {
+                    None
+                };
+                match (
+                    set.contains(&(row, col)),
+                    curr_parent,
+                    set.contains(&(row, col + 1)),
+                    next_parent,
+                ) {
+                    (a, Some(Parent::Right), _, _) => {
+                        if a {
+                            stdout.set_color(&green);
+                        }
+                        write!(stdout, "⮞");
+                    }
+                    (_, _, b, Some(Parent::Left)) => {
+                        if b {
+                            stdout.set_color(&green);
+                        }
+                        write!(stdout, "⮜");
+                    }
+                    _ => {
+                        write!(stdout, " ");
+                    }
+                }
+                stdout.set_color(&default);
             }
             write!(&mut stdout, "\n").unwrap();
+
+            for col in 0..SIZE {
+                let curr_parent = self.search_nodes[row][col].parent;
+                let next_parent = if row < SIZE - 1 {
+                    self.search_nodes[row + 1][col].parent
+                } else {
+                    None
+                };
+                match (
+                    set.contains(&(row, col)),
+                    curr_parent,
+                    set.contains(&(row + 1, col)),
+                    next_parent,
+                ) {
+                    (a, Some(Parent::Down), _, _) => {
+                        if a {
+                            stdout.set_color(&green);
+                        }
+                        write!(stdout, "⮟ ");
+                    }
+                    (_, _, b, Some(Parent::Up)) => {
+                        if b {
+                            stdout.set_color(&green);
+                        }
+                        write!(stdout, "⮝ ");
+                    }
+                    _ => {
+                        write!(stdout, "  ");
+                    }
+                }
+                stdout.set_color(&default);
+            }
+            write!(stdout, "\n");
         }
     }
 }
