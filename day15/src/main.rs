@@ -3,21 +3,21 @@ use std::time::Instant;
 //old performance number: 650 ms
 fn main() {
     let small_cavern = Cavern::<10>::from_str(PRACTICE);
-    small_cavern.print();
+    small_cavern.print_arrows();
     println!("Min path for small cavern: {}\n", small_cavern.get_cost());
 
     let large_cavern = Cavern::<100>::from_str(INPUT);
-    //large_cavern.print();
+    large_cavern.print_arrows();
     println!("Min path for large cavern: {}\n", large_cavern.get_cost());
 
     let medium_cavern = Cavern::<50>::larger_from_str(PRACTICE, 10);
-    medium_cavern.print();
+    medium_cavern.print_arrows();
     println!("Min path for medium cavern: {}\n", medium_cavern.get_cost());
 
     let start = Instant::now();
     let huge_cavern = Cavern::<500>::larger_from_str(INPUT, 100);
     let time = start.elapsed();
-    //huge_cavern.print();
+    //huge_cavern.print_arrows();
     println!("{time:#?}");
     println!("Min path for huge cavern: {}\n", huge_cavern.get_cost());
 }
@@ -32,6 +32,7 @@ struct Cavern<const SIZE: usize> {
 struct SearchNode {
     cost: usize,
     parent: Option<Parent>,
+    solved: bool,
 }
 
 #[derive(Debug)]
@@ -87,7 +88,11 @@ impl<const SIZE: usize> Cavern<SIZE> {
         }) = heap.pop()
         {
             if cost < self.search_nodes[row][col].cost {
-                self.search_nodes[row][col] = SearchNode { cost, parent };
+                self.search_nodes[row][col] = SearchNode {
+                    cost,
+                    parent,
+                    solved: true,
+                };
                 if row == SIZE - 1 && col == SIZE - 1 {
                     break;
                 }
@@ -168,6 +173,7 @@ impl<const SIZE: usize> Cavern<SIZE> {
             [[SearchNode {
                 cost: usize::MAX,
                 parent: None,
+                solved: false,
             }; SIZE]; SIZE],
         );
         let mut out = Self {
@@ -177,12 +183,18 @@ impl<const SIZE: usize> Cavern<SIZE> {
         out.search();
         out
     }
-    fn print(&self) {
+    fn print_arrows(&self) {
         use std::{collections::HashSet, io::Write};
         use termcolor::{BufferedStandardStream, Color, ColorChoice, ColorSpec, WriteColor};
         let mut set = HashSet::new();
-        set.insert((SIZE - 1, SIZE - 1));
         let mut end = (SIZE - 1, SIZE - 1);
+        set.insert(end);
+        let mut stdout = BufferedStandardStream::stdout(ColorChoice::Always);
+        let mut green = ColorSpec::new();
+        let mut red = ColorSpec::new();
+        red.set_fg(Some(Color::Red));
+        green.set_fg(Some(Color::Green)).set_bold(true);
+
         while let Some(parent) = self.search_nodes[end.0][end.1].parent {
             end = match parent {
                 Parent::Up => (end.0 - 1, end.1),
@@ -192,9 +204,45 @@ impl<const SIZE: usize> Cavern<SIZE> {
             };
             set.insert(end);
         }
+        let default = ColorSpec::default();
+        for row in 0..SIZE {
+            for col in 0..SIZE {
+                if set.contains(&(row, col)) {
+                    stdout.set_color(&green);
+                } else if !self.search_nodes[row][col].solved {
+                    stdout.set_color(&red);
+                }
+                match self.search_nodes[row][col].parent {
+                    None => write!(stdout, "{}", self.graph[row][col]),
+                    Some(Parent::Up) => write!(stdout, "▲"),
+                    Some(Parent::Down) => write!(stdout, "▼"),
+                    Some(Parent::Left) => write!(stdout, "◀"),
+                    Some(Parent::Right) => write!(stdout, "▶"),
+                };
+                stdout.set_color(&default);
+            }
+            write!(stdout, "\n");
+        }
+        stdout.flush();
+    }
+    fn print(&self) {
+        use std::{collections::HashSet, io::Write};
+        use termcolor::{BufferedStandardStream, Color, ColorChoice, ColorSpec, WriteColor};
+        let mut set = HashSet::new();
+        set.insert((SIZE - 1, SIZE - 1));
+        let mut end = (SIZE - 1, SIZE - 1);
         let mut stdout = BufferedStandardStream::stdout(ColorChoice::Always);
         let mut green = ColorSpec::new();
         green.set_fg(Some(Color::Green)).set_bold(true);
+        while let Some(parent) = self.search_nodes[end.0][end.1].parent {
+            end = match parent {
+                Parent::Up => (end.0 - 1, end.1),
+                Parent::Down => (end.0 + 1, end.1),
+                Parent::Left => (end.0, end.1 - 1),
+                Parent::Right => (end.0, end.1 + 1),
+            };
+            set.insert(end);
+        }
         let default = ColorSpec::default();
         for row in 0..SIZE {
             for col in 0..SIZE {
@@ -224,13 +272,13 @@ impl<const SIZE: usize> Cavern<SIZE> {
                         if a {
                             stdout.set_color(&green);
                         }
-                        write!(stdout, "⮞");
+                        write!(stdout, "▶");
                     }
                     (_, _, b, Some(Parent::Left)) => {
                         if b {
                             stdout.set_color(&green);
                         }
-                        write!(stdout, "⮜");
+                        write!(stdout, "◀");
                     }
                     _ => {
                         write!(stdout, " ");
@@ -257,13 +305,13 @@ impl<const SIZE: usize> Cavern<SIZE> {
                         if a {
                             stdout.set_color(&green);
                         }
-                        write!(stdout, "⮟ ");
+                        write!(stdout, "▼ ");
                     }
                     (_, _, b, Some(Parent::Up)) => {
                         if b {
                             stdout.set_color(&green);
                         }
-                        write!(stdout, "⮝ ");
+                        write!(stdout, "▲ ");
                     }
                     _ => {
                         write!(stdout, "  ");
