@@ -4,6 +4,7 @@ use std::time::Instant;
 fn main() {
     let small_cavern = Cavern::<10>::from_str(PRACTICE);
     small_cavern.print();
+    small_cavern.print_arrows();
     println!("Min path for small cavern: {}\n", small_cavern.get_cost());
 
     let large_cavern = Cavern::<100>::from_str(INPUT);
@@ -17,8 +18,8 @@ fn main() {
     let start = Instant::now();
     let huge_cavern = Cavern::<500>::larger_from_str(INPUT, 100);
     let time = start.elapsed();
-    println!("{time:#?}");
     println!("Min path for huge cavern: {}\n", huge_cavern.get_cost());
+    println!("created and solved huge cavern in {time:?}");
 }
 
 #[derive(Debug)]
@@ -31,7 +32,6 @@ struct Cavern<const SIZE: usize> {
 struct SearchNode {
     cost: usize,
     parent: Option<Parent>,
-    solved: bool,
 }
 
 #[derive(Debug)]
@@ -87,11 +87,7 @@ impl<const SIZE: usize> Cavern<SIZE> {
         }) = heap.pop()
         {
             if cost < self.search_nodes[row][col].cost {
-                self.search_nodes[row][col] = SearchNode {
-                    cost,
-                    parent,
-                    solved: true,
-                };
+                self.search_nodes[row][col] = SearchNode { cost, parent };
                 if row == SIZE - 1 && col == SIZE - 1 {
                     break;
                 }
@@ -172,7 +168,6 @@ impl<const SIZE: usize> Cavern<SIZE> {
             [[SearchNode {
                 cost: usize::MAX,
                 parent: None,
-                solved: false,
             }; SIZE]; SIZE],
         );
         let mut out = Self {
@@ -190,8 +185,6 @@ impl<const SIZE: usize> Cavern<SIZE> {
         set.insert(end);
         let mut stdout = BufferedStandardStream::stdout(ColorChoice::Always);
         let mut green = ColorSpec::new();
-        let mut red = ColorSpec::new();
-        red.set_fg(Some(Color::Red));
         green.set_fg(Some(Color::Green)).set_bold(true);
 
         while let Some(parent) = self.search_nodes[end.0][end.1].parent {
@@ -208,8 +201,6 @@ impl<const SIZE: usize> Cavern<SIZE> {
             for col in 0..SIZE {
                 if set.contains(&(row, col)) {
                     stdout.set_color(&green).unwrap();
-                } else if !self.search_nodes[row][col].solved {
-                    stdout.set_color(&red).unwrap();
                 }
                 match self.search_nodes[row][col].parent {
                     None => write!(stdout, "{}", self.graph[row][col]).unwrap(),
