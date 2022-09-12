@@ -3,21 +3,20 @@ use std::time::Instant;
 //old performance number: 650 ms
 fn main() {
     let small_cavern = Cavern::<10>::from_str(PRACTICE);
-    small_cavern.print_arrows();
+    small_cavern.print();
     println!("Min path for small cavern: {}\n", small_cavern.get_cost());
 
     let large_cavern = Cavern::<100>::from_str(INPUT);
-    large_cavern.print_arrows();
+    large_cavern.print();
     println!("Min path for large cavern: {}\n", large_cavern.get_cost());
 
     let medium_cavern = Cavern::<50>::larger_from_str(PRACTICE, 10);
-    medium_cavern.print_arrows();
+    medium_cavern.print();
     println!("Min path for medium cavern: {}\n", medium_cavern.get_cost());
 
     let start = Instant::now();
     let huge_cavern = Cavern::<500>::larger_from_str(INPUT, 100);
     let time = start.elapsed();
-    //huge_cavern.print_arrows();
     println!("{time:#?}");
     println!("Min path for huge cavern: {}\n", huge_cavern.get_cost());
 }
@@ -208,22 +207,22 @@ impl<const SIZE: usize> Cavern<SIZE> {
         for row in 0..SIZE {
             for col in 0..SIZE {
                 if set.contains(&(row, col)) {
-                    stdout.set_color(&green);
+                    stdout.set_color(&green).unwrap();
                 } else if !self.search_nodes[row][col].solved {
-                    stdout.set_color(&red);
+                    stdout.set_color(&red).unwrap();
                 }
                 match self.search_nodes[row][col].parent {
-                    None => write!(stdout, "{}", self.graph[row][col]),
-                    Some(Parent::Up) => write!(stdout, "▲"),
-                    Some(Parent::Down) => write!(stdout, "▼"),
-                    Some(Parent::Left) => write!(stdout, "◀"),
-                    Some(Parent::Right) => write!(stdout, "▶"),
+                    None => write!(stdout, "{}", self.graph[row][col]).unwrap(),
+                    Some(Parent::Up) => write!(stdout, "▲").unwrap(),
+                    Some(Parent::Down) => write!(stdout, "▼").unwrap(),
+                    Some(Parent::Left) => write!(stdout, "◀").unwrap(),
+                    Some(Parent::Right) => write!(stdout, "▶").unwrap(),
                 };
-                stdout.set_color(&default);
+                stdout.set_color(&default).unwrap();
             }
-            write!(stdout, "\n");
+            write!(stdout, "\n").unwrap();
         }
-        stdout.flush();
+        stdout.flush().unwrap();
     }
     fn print(&self) {
         use std::{collections::HashSet, io::Write};
@@ -233,6 +232,7 @@ impl<const SIZE: usize> Cavern<SIZE> {
         let mut end = (SIZE - 1, SIZE - 1);
         let mut stdout = BufferedStandardStream::stdout(ColorChoice::Always);
         let mut green = ColorSpec::new();
+        let default = ColorSpec::default();
         green.set_fg(Some(Color::Green)).set_bold(true);
         while let Some(parent) = self.search_nodes[end.0][end.1].parent {
             end = match parent {
@@ -243,7 +243,6 @@ impl<const SIZE: usize> Cavern<SIZE> {
             };
             set.insert(end);
         }
-        let default = ColorSpec::default();
         for row in 0..SIZE {
             for col in 0..SIZE {
                 match set.contains(&(row, col)) {
@@ -256,70 +255,8 @@ impl<const SIZE: usize> Cavern<SIZE> {
                         stdout.set_color(&default).unwrap();
                     }
                 }
-                let curr_parent = self.search_nodes[row][col].parent;
-                let next_parent = if col < SIZE - 1 {
-                    self.search_nodes[row][col + 1].parent
-                } else {
-                    None
-                };
-                match (
-                    set.contains(&(row, col)),
-                    curr_parent,
-                    set.contains(&(row, col + 1)),
-                    next_parent,
-                ) {
-                    (a, Some(Parent::Right), _, _) => {
-                        if a {
-                            stdout.set_color(&green);
-                        }
-                        write!(stdout, "▶");
-                    }
-                    (_, _, b, Some(Parent::Left)) => {
-                        if b {
-                            stdout.set_color(&green);
-                        }
-                        write!(stdout, "◀");
-                    }
-                    _ => {
-                        write!(stdout, " ");
-                    }
-                }
-                stdout.set_color(&default);
             }
             write!(&mut stdout, "\n").unwrap();
-
-            for col in 0..SIZE {
-                let curr_parent = self.search_nodes[row][col].parent;
-                let next_parent = if row < SIZE - 1 {
-                    self.search_nodes[row + 1][col].parent
-                } else {
-                    None
-                };
-                match (
-                    set.contains(&(row, col)),
-                    curr_parent,
-                    set.contains(&(row + 1, col)),
-                    next_parent,
-                ) {
-                    (a, Some(Parent::Down), _, _) => {
-                        if a {
-                            stdout.set_color(&green);
-                        }
-                        write!(stdout, "▼ ");
-                    }
-                    (_, _, b, Some(Parent::Up)) => {
-                        if b {
-                            stdout.set_color(&green);
-                        }
-                        write!(stdout, "▲ ");
-                    }
-                    _ => {
-                        write!(stdout, "  ");
-                    }
-                }
-                stdout.set_color(&default);
-            }
-            write!(stdout, "\n");
         }
     }
 }
