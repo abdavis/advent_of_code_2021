@@ -171,14 +171,14 @@ impl<const SIZE: usize> Cavern<SIZE> {
         let mut set = HashSet::new();
         set.insert((SIZE - 1, SIZE - 1));
         let mut end = (SIZE - 1, SIZE - 1);
-        while let Some(parent) = self.searched.get(&end).unwrap().parent {
-            set.insert(parent);
-            end = parent;
-        }
         let mut stdout = BufferedStandardStream::stdout(ColorChoice::Always);
         let mut green = ColorSpec::new();
         green.set_fg(Some(Color::Green)).set_bold(true);
         let default = ColorSpec::default();
+        while let Some(parent) = self.searched.get(&end).unwrap().parent {
+            set.insert(parent);
+            end = parent;
+        }
         for row in 0..SIZE {
             for col in 0..SIZE {
                 match set.contains(&(row, col)) {
