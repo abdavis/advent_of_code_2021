@@ -1,25 +1,75 @@
-use std::collections::binary_heap::Iter;
-
+use std::cmp::max;
 fn main() {
-    let inputs: Vec<SnailNumber> = PRACTICE
+    let prac_num = PRACTICE
         .lines()
         .map(|line| line.try_into().expect("conversion error"))
+        .reduce(|acc, next| SnailNumber::add(acc, next))
+        .unwrap();
+    println!("Magnitude: {}", prac_num.magnitude());
+
+    let num = INPUT
+        .lines()
+        .map(|line| line.try_into().expect("conversion error"))
+        .reduce(|acc, next| SnailNumber::add(acc, next))
+        .unwrap();
+    println!("Magnitude: {}", num.magnitude());
+    let prac_nums: Vec<SnailNumber> = PRACTICE
+        .lines()
+        .map(|line| line.try_into().expect("foo"))
         .collect();
+
+    let mut maximum = 0;
+    for (i, inum) in prac_nums.iter().enumerate() {
+        for (j, jnum) in prac_nums.iter().enumerate() {
+            if i != j {
+                maximum = max(
+                    maximum,
+                    SnailNumber::add(inum.clone(), jnum.clone()).magnitude(),
+                )
+            }
+        }
+    }
+    println!("practice max: {maximum}");
+    let nums: Vec<SnailNumber> = INPUT
+        .lines()
+        .map(|line| line.try_into().expect("foo"))
+        .collect();
+
+    let mut maximum = 0;
+    for (i, inum) in nums.iter().enumerate() {
+        for (j, jnum) in nums.iter().enumerate() {
+            if i != j {
+                maximum = max(
+                    maximum,
+                    SnailNumber::add(inum.clone(), jnum.clone()).magnitude(),
+                )
+            }
+        }
+    }
+    println!("practice max: {maximum}");
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum SnailNumber {
     Num(u32),
     Pair(Box<(SnailNumber, SnailNumber)>),
 }
 
 impl SnailNumber {
+    fn magnitude(&self) -> u32 {
+        match self {
+            Self::Num(n) => *n,
+            Self::Pair(pair) => 3 * pair.0.magnitude() + 2 * pair.1.magnitude(),
+        }
+    }
     fn add(lhs: Self, rhs: Self) -> Self {
         SnailNumber::Pair(Box::new((lhs, rhs))).reduce()
     }
     fn reduce(mut self) -> Self {
         while self.explode(0).0 {}
-        while self.split() {}
+        while self.split() {
+            while self.explode(0).0 {}
+        }
         self
     }
     fn explode(&mut self, depth: u8) -> (bool, Option<u32>, Option<u32>) {
@@ -72,7 +122,18 @@ impl SnailNumber {
         }
     }
     fn split(&mut self) -> bool {
-        todo!()
+        match self {
+            Self::Num(n) if *n > 9 && *n % 2 == 0 => {
+                *self = Self::Pair(Box::new((Self::Num(*n / 2), Self::Num(*n / 2))));
+                true
+            }
+            Self::Num(n) if *n > 9 && *n % 2 == 1 => {
+                *self = Self::Pair(Box::new((Self::Num(*n / 2), Self::Num(*n / 2 + 1))));
+                true
+            }
+            Self::Num(_) => false,
+            Self::Pair(pair) => pair.0.split() || pair.1.split(),
+        }
     }
 }
 
