@@ -83,9 +83,10 @@ fn locate_beacons(mut scanners: Vec<Vec<Beacon>>) -> (Vec<Vec<Beacon>>, i32) {
     let mut max = 0;
     for outer in &scanner_positions {
         for inner in &scanner_positions {
-            let distance =
-                (outer.x - inner.x).abs() + (outer.y - inner.y).abs() + (outer.z - inner.z).abs();
-            max = std::cmp::max(max, distance);
+            max = std::cmp::max(
+                max,
+                (outer.x - inner.x).abs() + (outer.y - inner.y).abs() + (outer.z - inner.z).abs(),
+            );
         }
     }
 
