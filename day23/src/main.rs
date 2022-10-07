@@ -171,27 +171,6 @@ fn queue_children<const ROOM_SIZE: usize>(
                     })
                 }
             }
-            // match key.node.rooms[room].as_slice() {
-            //     [Empty, s, ..] if s == space => {
-            //         child.rooms[room][0] = *space;
-            //         if !completed.contains(&child) {
-            //             queue.push(PriorityKey {
-            //                 node: Rc::new(child),
-            //                 cost: (max(i, target) - min(i, target) + 1) * space.cost() + key.cost,
-            //             })
-            //         }
-            //     }
-            //     [Empty, Empty, ..] => {
-            //         child.rooms[room][1] = *space;
-            //         if !completed.contains(&child) {
-            //             queue.push(PriorityKey {
-            //                 node: Rc::new(child),
-            //                 cost: (max(i, target) - min(i, target) + 2) * space.cost() + key.cost,
-            //             })
-            //         }
-            //     }
-            //     _ => {}
-            // }
         }
     }
 }
