@@ -5,37 +5,77 @@ use std::{
     fmt::Formatter,
     hash::{Hash, Hasher},
     rc::Rc,
+    time::Instant,
 };
 
-const END_STATE: Node = Node {
-    hallway: [Space::Empty; 11],
-    rooms: [[Space::A; 2], [Space::B; 2], [Space::C; 2], [Space::D; 2]],
-    parent: None,
-};
+fn main() {
+    let start = Instant::now();
+    let (_end, _cost) = find_paths::<2>(PRACTICE.into(), end_state());
+    let mut time = start.elapsed();
+    // println!("{end}");
+    // println!("{cost}");
+
+    let start = Instant::now();
+    let (_end, _cost) = find_paths::<2>(INPUT.into(), end_state());
+    time += start.elapsed();
+    // println!("{end}");
+    // println!("{cost}");
+
+    let start = Instant::now();
+    let first: Node<4> = unfold(PRACTICE).as_str().into();
+    let (_end, _cost) = find_paths(first, end_state());
+    time += start.elapsed();
+    // println!("{end}");
+    // println!("{cost}");
+    // println!("{} steps", end.depth());
+
+    let start = Instant::now();
+    let first: Node<4> = unfold(INPUT).as_str().into();
+    let (end, cost) = find_paths(first, end_state());
+    time += start.elapsed();
+    println!("{end}");
+    println!("{cost}");
+    println!("{} steps", end.depth());
+    println!("Total time for all runs (excluding println calls): {time:?}");
+}
+
+fn end_state<const RS: usize>() -> Node<RS> {
+    use Space::*;
+    Node {
+        parent: None,
+        hallway: [Empty; 11],
+        rooms: [[A; RS], [B; RS], [C; RS], [D; RS]],
+    }
+}
 
 const PRACTICE: &str = include_str!("practice.txt");
 
 const INPUT: &str = include_str!("input.txt");
 
-fn main() {
-    let (end, cost) = find_paths(PRACTICE.into());
-    println!("{end}");
-    println!("{cost}");
+const FOLD: &str = "#D#C#B#A#
+#D#B#A#C#";
 
-    let (end, cost) = find_paths(INPUT.into());
-    //println!("{end}");
-    println!("{cost}");
+fn unfold(input: &str) -> String {
+    input
+        .lines()
+        .take(3)
+        .chain(FOLD.lines())
+        .chain(input.lines().skip(3))
+        .collect()
 }
 
-fn find_paths(start: Node) -> (Rc<Node>, usize) {
+fn find_paths<const ROOM_SIZE: usize>(
+    start: Node<ROOM_SIZE>,
+    end: Node<ROOM_SIZE>,
+) -> (Rc<Node<ROOM_SIZE>>, usize) {
     let mut queue = BinaryHeap::new();
-    let mut completed = HashSet::<Rc<Node>>::new();
+    let mut completed = HashSet::<Rc<Node<ROOM_SIZE>>>::new();
     queue.push(PriorityKey {
         node: Rc::new(start),
         cost: 0,
     });
     while let Some(key) = queue.pop() {
-        if *key.node == END_STATE {
+        if *key.node == end {
             return (key.node, key.cost);
         }
         if !completed.contains(&key.node) {
@@ -47,10 +87,10 @@ fn find_paths(start: Node) -> (Rc<Node>, usize) {
     panic!("Never found end node!")
 }
 
-fn queue_children(
-    key: &PriorityKey,
-    queue: &mut BinaryHeap<PriorityKey>,
-    completed: &HashSet<Rc<Node>>,
+fn queue_children<const ROOM_SIZE: usize>(
+    key: &PriorityKey<ROOM_SIZE>,
+    queue: &mut BinaryHeap<PriorityKey<ROOM_SIZE>>,
+    completed: &HashSet<Rc<Node<ROOM_SIZE>>>,
 ) {
     use Space::*;
     let child = Node {
@@ -60,7 +100,7 @@ fn queue_children(
     //move to hall
     for (i, room) in key.node.rooms.iter().enumerate() {
         let start = i * 2 + 2;
-        let mut move_to_hall = |moving, child: Node, steps| {
+        let mut move_to_hall = |moving, child: Node<ROOM_SIZE>, steps| {
             for n in (0..=start).rev() {
                 if key.node.hallway[n] != Empty {
                     break;
@@ -88,18 +128,14 @@ fn queue_children(
                 }
             }
         };
-
-        if room[0] != Empty && (room[0] != i.into() || room[1] != i.into()) {
-            let moving = room[0];
+        if let Some((j, spot)) = room.iter().enumerate().find(|(_, s)| **s != Empty) {
             let mut child = child.clone();
-            child.rooms[i][0] = Empty;
-            move_to_hall(moving, child, 1);
-        }
-        if room[0] == Empty && room[1] != Empty && room[1] != i.into() {
-            let moving = room[1];
-            let mut child = child.clone();
-            child.rooms[i][1] = Empty;
-            move_to_hall(moving, child, 2);
+            child.rooms[i][j] = Empty;
+            if *spot != i.into()
+                || (*spot == i.into() && room[j + 1..].iter().any(|s| *s != i.into()))
+            {
+                move_to_hall(*spot, child, j + 1);
+            }
         }
     }
     //move into room
@@ -111,55 +147,72 @@ fn queue_children(
         .filter(|(_, s)| **s != Empty)
     {
         let target = usize::from(space) * 2 + 2;
-        let room = usize::from(space);
+        let room_idx = usize::from(space);
         let mut child = child.clone();
         child.hallway[i] = Empty;
         if ((i + 1)..=target)
             .chain(target..i)
             .all(|s| key.node.hallway[s] == Empty)
+            && key.node.rooms[room_idx]
+                .iter()
+                .all(|s| *s == Empty || s == space)
         {
-            match key.node.rooms[room] {
-                [Empty, s] if s == *space => {
-                    child.rooms[room][0] = *space;
-                    if !completed.contains(&child) {
-                        queue.push(PriorityKey {
-                            node: Rc::new(child),
-                            cost: (max(i, target) - min(i, target) + 1) * space.cost() + key.cost,
-                        })
-                    }
+            if let Some((j, _)) = key.node.rooms[room_idx]
+                .iter()
+                .enumerate()
+                .rev()
+                .find(|(_, s)| **s == Empty)
+            {
+                child.rooms[room_idx][j] = *space;
+                if !completed.contains(&child) {
+                    queue.push(PriorityKey {
+                        node: Rc::new(child),
+                        cost: (max(i, target) - min(i, target) + j + 1) * space.cost() + key.cost,
+                    })
                 }
-                [Empty, Empty] => {
-                    child.rooms[room][1] = *space;
-                    if !completed.contains(&child) {
-                        queue.push(PriorityKey {
-                            node: Rc::new(child),
-                            cost: (max(i, target) - min(i, target) + 2) * space.cost() + key.cost,
-                        })
-                    }
-                }
-                _ => {}
             }
+            // match key.node.rooms[room].as_slice() {
+            //     [Empty, s, ..] if s == space => {
+            //         child.rooms[room][0] = *space;
+            //         if !completed.contains(&child) {
+            //             queue.push(PriorityKey {
+            //                 node: Rc::new(child),
+            //                 cost: (max(i, target) - min(i, target) + 1) * space.cost() + key.cost,
+            //             })
+            //         }
+            //     }
+            //     [Empty, Empty, ..] => {
+            //         child.rooms[room][1] = *space;
+            //         if !completed.contains(&child) {
+            //             queue.push(PriorityKey {
+            //                 node: Rc::new(child),
+            //                 cost: (max(i, target) - min(i, target) + 2) * space.cost() + key.cost,
+            //             })
+            //         }
+            //     }
+            //     _ => {}
+            // }
         }
     }
 }
 
-struct PriorityKey {
-    node: Rc<Node>,
+struct PriorityKey<const ROOM_SIZE: usize> {
+    node: Rc<Node<ROOM_SIZE>>,
     cost: usize,
 }
-impl Eq for PriorityKey {}
-impl PartialEq for PriorityKey {
+impl<const ROOM_SIZE: usize> Eq for PriorityKey<ROOM_SIZE> {}
+impl<const ROOM_SIZE: usize> PartialEq for PriorityKey<ROOM_SIZE> {
     fn eq(&self, other: &Self) -> bool {
         self.cost == other.cost
     }
 }
-impl PartialOrd for PriorityKey {
+impl<const ROOM_SIZE: usize> PartialOrd for PriorityKey<ROOM_SIZE> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         //comparing in reverse order because we want a min heap
         Some(other.cost.cmp(&self.cost))
     }
 }
-impl Ord for PriorityKey {
+impl<const ROOM_SIZE: usize> Ord for PriorityKey<ROOM_SIZE> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         //comparing in reverse order because we want a min heap
         other.cost.cmp(&self.cost)
@@ -167,24 +220,24 @@ impl Ord for PriorityKey {
 }
 
 #[derive(Clone)]
-struct Node {
+struct Node<const ROOM_SIZE: usize> {
     hallway: [Space; 11],
-    rooms: [[Space; 2]; 4],
-    parent: Option<Rc<Node>>,
+    rooms: [[Space; ROOM_SIZE]; 4],
+    parent: Option<Rc<Node<ROOM_SIZE>>>,
 }
-impl Eq for Node {}
-impl PartialEq for Node {
+impl<const ROOM_SIZE: usize> Eq for Node<ROOM_SIZE> {}
+impl<const ROOM_SIZE: usize> PartialEq for Node<ROOM_SIZE> {
     fn eq(&self, other: &Self) -> bool {
         self.hallway == other.hallway && self.rooms == other.rooms
     }
 }
-impl Hash for Node {
+impl<const ROOM_SIZE: usize> Hash for Node<ROOM_SIZE> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.hallway.hash(state);
         self.rooms.hash(state);
     }
 }
-impl From<&str> for Node {
+impl<const ROOM_SIZE: usize> From<&str> for Node<ROOM_SIZE> {
     fn from(input: &str) -> Self {
         let letters: Vec<Space> = input
             .chars()
@@ -197,20 +250,21 @@ impl From<&str> for Node {
             })
             .collect();
 
-        Self {
+        let mut out = Self {
             hallway: [Space::Empty; 11],
             parent: None,
-            rooms: [
-                [letters[0], letters[4]],
-                [letters[1], letters[5]],
-                [letters[2], letters[6]],
-                [letters[3], letters[7]],
-            ],
+            rooms: [[Space::Empty; ROOM_SIZE]; 4],
+        };
+        for i in 0..out.rooms.len() {
+            for j in 0..ROOM_SIZE {
+                out.rooms[i][j] = letters[j * out.rooms.len() + i];
+            }
         }
+        out
     }
 }
 
-impl Display for Node {
+impl<const ROOM_SIZE: usize> Display for Node<ROOM_SIZE> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
         if let Some(par) = &self.parent {
             write!(f, "{}", par)?;
@@ -220,19 +274,27 @@ impl Display for Node {
             write!(f, "{}", s)?
         }
         write!(f, "#\n")?;
-        let rooms = &self.rooms;
-        write!(
-            f,
-            "###{}#{}#{}#{}###\n  #{}#{}#{}#{}#\n  #########\n\n",
-            rooms[0][0],
-            rooms[1][0],
-            rooms[2][0],
-            rooms[3][0],
-            rooms[0][1],
-            rooms[1][1],
-            rooms[2][1],
-            rooms[3][1]
-        )
+        for n in 0..ROOM_SIZE {
+            let padding = if n == 0 { "##" } else { "  " };
+            write!(f, "{padding}")?;
+            for k in 0..4 {
+                write!(f, "#{}", self.rooms[k][n])?;
+            }
+            write!(f, "#{padding}\n")?;
+        }
+        write!(f, "  #########\n\n")
+    }
+}
+
+impl<const ROOM_SIZE: usize> Node<ROOM_SIZE> {
+    fn depth(&self) -> usize {
+        self.recurse(0)
+    }
+    fn recurse(&self, depth: usize) -> usize {
+        match &self.parent {
+            None => depth + 1,
+            Some(par) => par.recurse(depth + 1),
+        }
     }
 }
 
