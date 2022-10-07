@@ -64,12 +64,9 @@ fn unfold(input: &str) -> String {
         .collect()
 }
 
-fn find_paths<const ROOM_SIZE: usize>(
-    start: Node<ROOM_SIZE>,
-    end: Node<ROOM_SIZE>,
-) -> (Rc<Node<ROOM_SIZE>>, usize) {
+fn find_paths<const RS: usize>(start: Node<RS>, end: Node<RS>) -> (Rc<Node<RS>>, usize) {
     let mut queue = BinaryHeap::new();
-    let mut completed = HashSet::<Rc<Node<ROOM_SIZE>>>::new();
+    let mut completed = HashSet::<Rc<Node<RS>>>::new();
     queue.push(PriorityKey {
         node: Rc::new(start),
         cost: 0,
@@ -87,10 +84,10 @@ fn find_paths<const ROOM_SIZE: usize>(
     panic!("Never found end node!")
 }
 
-fn queue_children<const ROOM_SIZE: usize>(
-    key: &PriorityKey<ROOM_SIZE>,
-    queue: &mut BinaryHeap<PriorityKey<ROOM_SIZE>>,
-    completed: &HashSet<Rc<Node<ROOM_SIZE>>>,
+fn queue_children<const RS: usize>(
+    key: &PriorityKey<RS>,
+    queue: &mut BinaryHeap<PriorityKey<RS>>,
+    completed: &HashSet<Rc<Node<RS>>>,
 ) {
     use Space::*;
     let child = Node {
@@ -100,7 +97,7 @@ fn queue_children<const ROOM_SIZE: usize>(
     //move to hall
     for (i, room) in key.node.rooms.iter().enumerate() {
         let start = i * 2 + 2;
-        let mut move_to_hall = |moving, child: Node<ROOM_SIZE>, steps| {
+        let mut move_to_hall = |moving, child: Node<RS>, steps| {
             for n in (0..=start).rev() {
                 if key.node.hallway[n] != Empty {
                     break;
@@ -175,23 +172,23 @@ fn queue_children<const ROOM_SIZE: usize>(
     }
 }
 
-struct PriorityKey<const ROOM_SIZE: usize> {
-    node: Rc<Node<ROOM_SIZE>>,
+struct PriorityKey<const RS: usize> {
+    node: Rc<Node<RS>>,
     cost: usize,
 }
-impl<const ROOM_SIZE: usize> Eq for PriorityKey<ROOM_SIZE> {}
-impl<const ROOM_SIZE: usize> PartialEq for PriorityKey<ROOM_SIZE> {
+impl<const RS: usize> Eq for PriorityKey<RS> {}
+impl<const RS: usize> PartialEq for PriorityKey<RS> {
     fn eq(&self, other: &Self) -> bool {
         self.cost == other.cost
     }
 }
-impl<const ROOM_SIZE: usize> PartialOrd for PriorityKey<ROOM_SIZE> {
+impl<const RS: usize> PartialOrd for PriorityKey<RS> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         //comparing in reverse order because we want a min heap
         Some(other.cost.cmp(&self.cost))
     }
 }
-impl<const ROOM_SIZE: usize> Ord for PriorityKey<ROOM_SIZE> {
+impl<const RS: usize> Ord for PriorityKey<RS> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         //comparing in reverse order because we want a min heap
         other.cost.cmp(&self.cost)
@@ -199,24 +196,24 @@ impl<const ROOM_SIZE: usize> Ord for PriorityKey<ROOM_SIZE> {
 }
 
 #[derive(Clone)]
-struct Node<const ROOM_SIZE: usize> {
+struct Node<const RS: usize> {
     hallway: [Space; 11],
-    rooms: [[Space; ROOM_SIZE]; 4],
-    parent: Option<Rc<Node<ROOM_SIZE>>>,
+    rooms: [[Space; RS]; 4],
+    parent: Option<Rc<Node<RS>>>,
 }
-impl<const ROOM_SIZE: usize> Eq for Node<ROOM_SIZE> {}
-impl<const ROOM_SIZE: usize> PartialEq for Node<ROOM_SIZE> {
+impl<const RS: usize> Eq for Node<RS> {}
+impl<const RS: usize> PartialEq for Node<RS> {
     fn eq(&self, other: &Self) -> bool {
         self.hallway == other.hallway && self.rooms == other.rooms
     }
 }
-impl<const ROOM_SIZE: usize> Hash for Node<ROOM_SIZE> {
+impl<const RS: usize> Hash for Node<RS> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.hallway.hash(state);
         self.rooms.hash(state);
     }
 }
-impl<const ROOM_SIZE: usize> From<&str> for Node<ROOM_SIZE> {
+impl<const RS: usize> From<&str> for Node<RS> {
     fn from(input: &str) -> Self {
         let letters: Vec<Space> = input
             .chars()
@@ -232,10 +229,10 @@ impl<const ROOM_SIZE: usize> From<&str> for Node<ROOM_SIZE> {
         let mut out = Self {
             hallway: [Space::Empty; 11],
             parent: None,
-            rooms: [[Space::Empty; ROOM_SIZE]; 4],
+            rooms: [[Space::Empty; RS]; 4],
         };
         for i in 0..out.rooms.len() {
-            for j in 0..ROOM_SIZE {
+            for j in 0..RS {
                 out.rooms[i][j] = letters[j * out.rooms.len() + i];
             }
         }
@@ -243,7 +240,7 @@ impl<const ROOM_SIZE: usize> From<&str> for Node<ROOM_SIZE> {
     }
 }
 
-impl<const ROOM_SIZE: usize> Display for Node<ROOM_SIZE> {
+impl<const RS: usize> Display for Node<RS> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
         if let Some(par) = &self.parent {
             write!(f, "{}", par)?;
@@ -253,7 +250,7 @@ impl<const ROOM_SIZE: usize> Display for Node<ROOM_SIZE> {
             write!(f, "{}", s)?
         }
         write!(f, "#\n")?;
-        for n in 0..ROOM_SIZE {
+        for n in 0..RS {
             let padding = if n == 0 { "##" } else { "  " };
             write!(f, "{padding}")?;
             for k in 0..4 {
@@ -265,7 +262,7 @@ impl<const ROOM_SIZE: usize> Display for Node<ROOM_SIZE> {
     }
 }
 
-impl<const ROOM_SIZE: usize> Node<ROOM_SIZE> {
+impl<const RS: usize> Node<RS> {
     fn depth(&self) -> usize {
         self.recurse(0)
     }
